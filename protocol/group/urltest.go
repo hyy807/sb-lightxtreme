@@ -3,7 +3,6 @@ package group
 import (
 	"context"
 	"io"
-	"maps"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -420,6 +419,9 @@ func URLTestOutbounds(ctx context.Context, outboundManager adapter.OutboundManag
 	testBatch.test(outbounds, link, interval, force)
 	b.Wait()
 	for _, outboundGroup := range testBatch.groups {
+		if nested, ok := outboundGroup.(*URLTest); ok {
+			nested.group.performUpdateCheck()
+		}
 		groupHistory := history.LoadURLTestHistory(RealTag(outboundGroup, N.NetworkTCP))
 		if groupHistory != nil {
 			testBatch.result[outboundGroup.Tag()] = groupHistory.Delay
@@ -438,13 +440,7 @@ func (b *urlTestBatch) test(outbounds []adapter.Outbound, link string, interval 
 		case *URLTest:
 			b.checked[tag] = true
 			b.groups = append(b.groups, nested)
-			b.batch.Go(tag, func() (any, error) {
-				nestedResult, _ := nested.group.urlTest(b.ctx, force)
-				b.access.Lock()
-				maps.Copy(b.result, nestedResult)
-				b.access.Unlock()
-				return nil, nil
-			})
+			b.test(nested.group.outbounds, nested.group.link, nested.group.interval, force)
 		case adapter.OutboundGroup:
 			b.checked[tag] = true
 			b.groups = append(b.groups, nested)
@@ -463,7 +459,7 @@ func (b *urlTestBatch) test(outbounds []adapter.Outbound, link string, interval 
 				defer cancel()
 				testChan := make(chan urlTestResult, 1)
 				go func() {
-					delay, testErr := urltest.URLTest(testCtx, link, detour)
+					delay, testErr := urltest.URLTestWithHistory(testCtx, link, detour, b.history, tag)
 					testChan <- urlTestResult{delay, testErr}
 				}()
 				var testResult urlTestResult
@@ -477,13 +473,8 @@ func (b *urlTestBatch) test(outbounds []adapter.Outbound, link string, interval 
 						return nil, nil
 					}
 					b.logger.Debug("outbound ", tag, " unavailable: ", testResult.err)
-					b.history.DeleteURLTestHistory(tag)
 				} else {
 					b.logger.Debug("outbound ", tag, " available: ", testResult.delay, "ms")
-					b.history.StoreURLTestHistory(tag, &adapter.URLTestHistory{
-						Time:  time.Now(),
-						Delay: testResult.delay,
-					})
 					b.access.Lock()
 					b.result[tag] = testResult.delay
 					b.access.Unlock()
