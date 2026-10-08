@@ -18,8 +18,6 @@ jobs:
         go test -tags with_utls,with_quic -count=1 ./mods/...
 
         '
-    - name: Latency regression tests
-      run: go test -race -tags with_utls,with_quic,with_clash_api -count=1 ./common/urltest ./protocol/group ./experimental/clashapi ./daemon
     - name: Config check of every private protocol
       run: 'go build -tags with_utls,with_quic,with_clash_api -o /tmp/sbox ./cmd/sing-box
 

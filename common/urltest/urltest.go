@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"reflect"
 	"sync"
 	"time"
 
@@ -57,10 +56,6 @@ func (s *HistoryStorage) LoadURLTestHistory(tag string) *adapter.URLTestHistory 
 
 func (s *HistoryStorage) DeleteURLTestHistory(tag string) {
 	s.access.Lock()
-	if _, exists := s.delayHistory[tag]; !exists {
-		s.access.Unlock()
-		return
-	}
 	delete(s.delayHistory, tag)
 	s.notifyUpdated()
 	s.access.Unlock()
@@ -68,10 +63,6 @@ func (s *HistoryStorage) DeleteURLTestHistory(tag string) {
 
 func (s *HistoryStorage) StoreURLTestHistory(tag string, history *adapter.URLTestHistory) {
 	s.access.Lock()
-	if previous := s.delayHistory[tag]; previous != nil && previous.Time.Equal(history.Time) && previous.Delay == history.Delay {
-		s.access.Unlock()
-		return
-	}
 	s.delayHistory[tag] = history
 	s.notifyUpdated()
 	s.access.Unlock()
@@ -90,72 +81,7 @@ func (s *HistoryStorage) Close() error {
 	return nil
 }
 
-const DefaultURL = "http://www.gstatic.com/generate_204"
-
-type testKey struct {
-	dialer N.Dialer
-	link   string
-}
-type testResult struct {
-	history adapter.URLTestHistory
-	err     error
-	done    chan struct{}
-	waiters int
-}
-
-var inFlight = struct {
-	sync.Mutex
-	calls map[testKey]*testResult
-}{calls: make(map[testKey]*testResult)}
-
-// runURLTest shares only overlapping measurements, never completed results.
-// The first caller owns the context; waiters receive its final measurement/error.
-func runURLTest(ctx context.Context, link string, detour N.Dialer) *testResult {
-	if link == "" {
-		link = DefaultURL
-	}
-	// Custom non-comparable dialers cannot be identity keys.
-	if !reflect.TypeOf(detour).Comparable() {
-		delay, err := measureURLTest(ctx, link, detour)
-		return &testResult{history: adapter.URLTestHistory{Time: time.Now(), Delay: delay}, err: err}
-	}
-	key := testKey{detour, link}
-	inFlight.Lock()
-	if call := inFlight.calls[key]; call != nil {
-		call.waiters++
-		inFlight.Unlock()
-		<-call.done
-		return call
-	}
-	call := &testResult{done: make(chan struct{})}
-	inFlight.calls[key] = call
-	inFlight.Unlock()
-	call.history.Delay, call.err = measureURLTest(ctx, link, detour)
-	call.history.Time = time.Now()
-	inFlight.Lock()
-	delete(inFlight.calls, key)
-	close(call.done)
-	inFlight.Unlock()
-	return call
-}
-
 func URLTest(ctx context.Context, link string, detour N.Dialer) (uint16, error) {
-	result := runURLTest(ctx, link, detour)
-	return result.history.Delay, result.err
-}
-
-// URLTestWithHistory publishes a shared measurement with its shared timestamp.
-func URLTestWithHistory(ctx context.Context, link string, detour N.Dialer, history *HistoryStorage, tag string) (uint16, error) {
-	result := runURLTest(ctx, link, detour)
-	if result.err != nil {
-		history.DeleteURLTestHistory(tag)
-	} else {
-		history.StoreURLTestHistory(tag, &result.history)
-	}
-	return result.history.Delay, result.err
-}
-
-func measureURLTest(ctx context.Context, link string, detour N.Dialer) (uint16, error) {
 	multiplexOutbound, isMultiplexOutbound := common.Cast[adapter.OutboundWithMultiplex](detour)
 	if isMultiplexOutbound && multiplexOutbound.MultiplexEnabled() {
 		warmContext := adapter.ContextWithKeepSession(ctx)
@@ -173,7 +99,7 @@ func measureURLTest(ctx context.Context, link string, detour N.Dialer) (uint16, 
 
 func urlTest(ctx context.Context, link string, detour N.Dialer) (t uint16, err error) {
 	if link == "" {
-		link = DefaultURL
+		link = "https://www.gstatic.com/generate_204"
 	}
 	linkURL, err := url.Parse(link)
 	if err != nil {

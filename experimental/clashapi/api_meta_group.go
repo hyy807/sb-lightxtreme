@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -64,6 +65,9 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 
 		query := r.URL.Query()
 		url := query.Get("url")
+		if strings.HasPrefix(url, "http://") {
+			url = ""
+		}
 		timeout, err := strconv.ParseInt(query.Get("timeout"), 10, 32)
 		if err != nil {
 			render.Status(r, http.StatusBadRequest)

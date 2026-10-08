@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -215,6 +216,9 @@ func getProxyDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		url := query.Get("url")
+		if strings.HasPrefix(url, "http://") {
+			url = ""
+		}
 		timeout, err := strconv.ParseInt(query.Get("timeout"), 10, 16)
 		if err != nil {
 			render.Status(r, http.StatusBadRequest)
@@ -226,16 +230,17 @@ func getProxyDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*time.Duration(timeout))
 		defer cancel()
 
-		for {
-			nested, ok := proxy.(adapter.OutboundGroup)
-			if !ok || nested.Selected(N.NetworkTCP) == nil {
-				break
-			}
-			proxy = nested.Selected(N.NetworkTCP)
-		}
-		realTag := group.RealTag(proxy, N.NetworkTCP)
-		delay, err := urltest.URLTestWithHistory(ctx, url, proxy, server.urlTestHistory, realTag)
+		delay, err := urltest.URLTest(ctx, url, proxy)
 		defer func() {
+			realTag := group.RealTag(proxy, N.NetworkTCP)
+			if err != nil {
+				server.urlTestHistory.DeleteURLTestHistory(realTag)
+			} else {
+				server.urlTestHistory.StoreURLTestHistory(realTag, &adapter.URLTestHistory{
+					Time:  time.Now(),
+					Delay: delay,
+				})
+			}
 			for _, detour := range server.outbound.Outbounds() {
 				urlTestGroup, isURLTestGroup := detour.(adapter.URLTestGroup)
 				if !isURLTestGroup {
