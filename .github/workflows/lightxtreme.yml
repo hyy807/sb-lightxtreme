@@ -346,3 +346,8 @@ jobs:
         '
 'on':
   workflow_dispatch: {}
+  push:
+    branches:
+    - master
+    paths:
+    - .github/workflows/lightxtreme.yml
