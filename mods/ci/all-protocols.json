@@ -1,13 +1,15 @@
-{"outbounds":[
-{"type":"lightxtreme","tag":"lx","server":"1.2.3.4","server_port":443,"password":"0123456789abcdef0123456789abcdef","tls":{"enabled":true,"server_name":"a.com"}},
-{"type":"heysocks-xhttp","tag":"hx","server":"1.2.3.4","server_port":443,"password":"00112233445566778899aabbccddeeff:00"},
-{"type":"onesocks","tag":"os","server":"1.2.3.4","server_port":443,"password":"abc"},
-{"type":"oppa","tag":"op","server":"1.2.3.4","server_port":443,"password":"0123456789abcdef0123456789abcdef"},
-{"type":"jumao","tag":"jm","server":"1.2.3.4","server_port":443,"password":"p","user_id":1,"user_pass":"x"},
-{"type":"fastup","tag":"fu","server":"1.2.3.4","server_port":443,"password":"p","mpw":"s","tls":{"enabled":true,"server_name":"a.com","utls":{"enabled":true,"fingerprint":"chrome_106"}}},
-{"type":"mieru","tag":"mi","server":"1.2.3.4","server_port":443,"transport":"TCP","username":"u","password":"p"},
-{"type":"shadowquic","tag":"sq","server":"1.2.3.4","server_port":443,"username":"u","password":"p","sni":"a.com"},
-{"type":"vless-xhttp","tag":"vx","server":"1.2.3.4","server_port":443,"uuid":"3ab9e5b8-3d07-4e0d-98e2-adfa99f2259f","tls":{"enabled":true,"server_name":"a.com","utls":{"enabled":true,"fingerprint":"chrome"},"reality":{"enabled":true,"public_key":"jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0","short_id":"0123"}},"xhttp":{"path":"/x","mode":"stream-one"}},
-{"type":"anytls","tag":"official-anytls","server":"1.2.3.4","server_port":443,"password":"p","tls":{"enabled":true,"server_name":"a.com"}},
-{"type":"trojan","tag":"official-trojan","server":"1.2.3.4","server_port":443,"password":"p"}
-]}
+{
+  "outbounds": [
+    {
+      "type": "lightxtreme",
+      "tag": "lx",
+      "server": "1.2.3.4",
+      "server_port": 443,
+      "password": "0123456789abcdef0123456789abcdef",
+      "tls": {
+        "enabled": true,
+        "server_name": "a.com"
+      }
+    }
+  ]
+}
